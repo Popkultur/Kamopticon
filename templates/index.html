@@ -1,0 +1,578 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Kamopticon v1.0</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/png" href="/static/favicon.ico">
+	
+    <link rel="stylesheet" href="/static/bootstrap-3.3.7-dist/css/bootstrap.min.css">
+	<link rel="stylesheet" href="/static/jquery-ui-1.12.1/jquery-ui.min.css">
+	<link rel="stylesheet" href="/static/tagsinput/bootstrap-tagsinput.css" />
+	<link rel="stylesheet" href="/static/styles.css">
+
+	<script src="/static/jquery/jquery.js"></script>
+	<script src="/static/jquery-ui-1.12.1/jquery-ui.min.js"></script>
+    <script src="/static/socket.io.js"></script>
+    <script src="/static/tagsinput/bootstrap-tagsinput.min.js"></script>
+  
+    <script>
+
+
+	function arrayBufferToBase64( buffer ) {
+		var binary = '';
+		var bytes = new Uint8Array( buffer );
+		var len = bytes.byteLength;
+		for (var i = 0; i < len; i++) {
+			binary += String.fromCharCode( bytes[ i ] );
+		}
+		return window.btoa( binary );
+	}
+
+    $(document).ready(function() {
+
+		
+		$(function() {
+			var socket = io('http://127.0.0.1:80');
+			socket.on('connect', function() {
+				/*$('div.videoframe canvas').each(function() {
+					socket.emit('connect', { data: this.id.substr(6,3) });
+				});*/
+			});
+			socket.on('sendpic', function(buffer) {
+					if (buffer) {
+
+						var canvas = document.getElementById('frame-' + buffer['vsnum']);
+						if (canvas != null) {
+							var ctx = canvas.getContext('2d');
+							var img = new Image();
+
+							img.onload = function () { // handle onload
+								var img = this;  // make sure we using valid image
+								canvas.width = img.width;
+								canvas.height = img.height;
+								var ctx = canvas.getContext("2d");
+								ctx.drawImage(img,0,0,img.width,img.height,0,0,img.width,img.height);
+								//callback(canvas.toDataURL());
+							}
+
+							img.src = 'data:image/jpeg;base64,' + arrayBufferToBase64(buffer['buffer']);
+							//canvas.width=img.width;
+							//canvas.height=img.height;
+							if (buffer['status'] != 0) {
+								$('ul#videosourceslist li.vslist-'+buffer['vsnum']).removeClass('success');
+								$('ul#videosourceslist li.vslist-'+buffer['vsnum']).addClass('error');
+								$.ajax({
+									url: '/lastseen',
+									data: {'vsnum': buffer['vsnum'], 'lastseen': 'error'},
+									type: 'GET'
+								});	
+							}
+							//ctx.drawImage(img,0,0,img.width,img.height,0,0,img.width,img.height);
+						}
+						if ($('div#camviews div.videoframe-'+buffer['vsnum']+' button.recbtn').hasClass('startrecording')) { 
+							socket.emit('camrecstart', { vsnum: buffer['vsnum']}); 
+							$('div#camviews div.videoframe-'+buffer['vsnum']+' button.recbtn').removeClass('startrecording');
+						}
+						if ($('div#camviews div.videoframe-'+buffer['vsnum']+' button.recbtn').hasClass('stoprecording')) { 
+							socket.emit('camrecstop', { vsnum: buffer['vsnum']}); 
+							$('div#camviews div.videoframe-'+buffer['vsnum']+' button.recbtn').removeClass('stoprecording');
+						}
+						if ($('div#camviews div.videoframe-'+buffer['vsnum']+' button.snapseqbtn').hasClass('startrecording')) { 
+							socket.emit('camsnapstart', { vsnum: buffer['vsnum']}); 
+							$('div#camviews div.videoframe-'+buffer['vsnum']+' button.snapseqbtn').removeClass('startrecording');
+						}
+						if ($('div#camviews div.videoframe-'+buffer['vsnum']+' button.snapseqbtn').hasClass('stoprecording')) { 
+							socket.emit('camsnapstop', { vsnum: buffer['vsnum']}); 
+							$('div#camviews div.videoframe-'+buffer['vsnum']+' button.snapseqbtn').removeClass('stoprecording');
+						}
+						if ($('div#camviews div.videoframe-'+buffer['vsnum']+' button.snapbtn').hasClass('startrecording')) { 
+							socket.emit('camsnapsingle', { vsnum: buffer['vsnum']}); 
+							$('div#camviews div.videoframe-'+buffer['vsnum']+' button.snapbtn').removeClass('startrecording');
+							$('div#camviews div.videoframe-'+buffer['vsnum']+' button.snapbtn').removeClass('disabled');	
+						}
+						if ($('#videosourceslist li span.vslist-'+buffer['vsnum']).parent('li').hasClass('stoprecording')) { 
+							socket.emit('camstop', { vsnum: buffer['vsnum']}); 
+							$('#videosourceslist li span.vslist-'+buffer['vsnum']).parent('li').removeClass('stoprecording');
+						}
+					}
+			});
+					
+			
+			
+			
+			
+
+			$('div#camviews').on('click', 'button.hidebtn', function() {
+				$(this).parents('div.videoframe').remove()
+				var i = $(this).attr("id").substr(11,4);
+				$('#videosourceslist li span#vslist-'+i).parent().remove()
+				$.ajax({
+					url: '/hide',
+					data: {'vsnum': $(this).attr("id").substr(11,4)},
+					type: 'GET'
+				});			
+			});
+
+			$('div#camviews').on('click', 'button.closebtn', function() {
+				var i = $(this).attr("id").substr(11,4);
+				$('#videosourceslist li span.vslist-'+i).parent('li').addClass('stoprecording');
+				$('#videosourceslist li span#vslist-'+i).parent().removeClass('ui-selected');
+				$('div#camviews div.videoframe-'+i).parents('div.col-sm-4').remove()
+			});
+
+			$('div#camviews').on('click', 'button.recbtn', function() {
+				var i = $(this).attr("id").substr(7,4);
+				if (!$('div#camviews div.videoframe-'+i+' button.recbtn').hasClass('disabled')) {
+					$('#camviews div.videoframe-'+i+' button.recbtn').addClass('startrecording');
+					$('div#camviews div.videoframe-'+i+' button.recbtn').addClass('disabled');
+				} else {
+					$('#camviews div.videoframe-'+i+' button.recbtn').addClass('stoprecording');
+					$('div#camviews div.videoframe-'+i+' button.recbtn').removeClass('disabled');				
+				}
+			});
+
+			$('div#camviews').on('click', 'button.snapseqbtn', function() {
+				var i = $(this).attr("id").substr(11,4);
+				if (!$('div#camviews div.videoframe-'+i+' button.snapseqbtn').hasClass('disabled')) {
+					$('#camviews div.videoframe-'+i+' button.snapseqbtn').addClass('startrecording');
+					$('div#camviews div.videoframe-'+i+' button.snapseqbtn').addClass('disabled');
+				} else {
+					$('#camviews div.videoframe-'+i+' button.snapseqbtn').addClass('stoprecording');
+					$('div#camviews div.videoframe-'+i+' button.snapseqbtn').removeClass('disabled');				
+				}
+			});
+			
+			$('div#camviews').on('click', 'button.snapbtn', function() {
+				var i = $(this).attr("id").substr(8,4);
+				if (!$('div#camviews div.videoframe-'+i+' button.snapbtn').hasClass('disabled')) {
+					$('#camviews div.videoframe-'+i+' button.snapbtn').addClass('startrecording');
+					$('div#camviews div.videoframe-'+i+' button.snapbtn').addClass('disabled');
+				}
+			});
+			
+			
+			$('div#camviews').on('click', 'button.resolvebtn', function() {
+				var btn = this;
+				var vsnum = $(this).attr("id").substr(11,4);
+				$.ajax({
+					url: '/resolve',
+					data: {'vsnum': vsnum},
+					type: 'GET',
+					success: function(response) {
+						$('#camviews div.videoframe-'+vsnum+' p.location').text(response.city+' - '+ response.region +' ('+response.country+') '+ response.org);
+					},
+					error: function(error) {
+					}
+				});			
+			});
+
+			
+			
+		});	
+	
+	
+	
+	
+	
+	
+	
+	
+		var url = (window.location.href).split("/").pop();
+		$('nav.navbar a[href="/'+url+'"]').parent('li').addClass('active');
+	
+		$('#lizenzbtn').click(function(){
+			$('#lizenz').show();
+		});
+		$('#lizenz .closebtn').click(function(){
+			$('#lizenz').hide();
+		});
+	
+		$('#availabilitybtn').click(function(){
+			$('#availability').show();
+			var vsnum = [];
+			$('#videosourceslist li:visible span.vslist').each(function() {
+				vsnum.push($(this).attr('id').substr(7,4));
+			});
+			var anzahl = 1;
+			for (var i=0;i<vsnum.length;i++) {
+				$('#videosourceslist li.vslist-'+vsnum[i]).removeClass('success');
+				$('#videosourceslist li.vslist-'+vsnum[i]).removeClass('error');
+				(function (i) {
+					$.ajax({
+						url: '/checkonline',
+						data: {'vsnum': vsnum[i]},
+						type: 'GET',
+						success: function(json) {
+								$('#videosourceslist li.vslist-'+json['vsnum']).addClass(json['lastseen']);
+								var proz = Math.round((anzahl / vsnum.length)*100);
+								$('#availability div.progress-bar').attr('aria-valuenow', proz).css('width', proz+'%');
+								if (anzahl >= vsnum.length) {
+									$('#availability div.progress').hide();
+									$('#availability p.fertig').show();
+								}
+								anzahl += 1;
+						}
+					});
+				})(i);
+			}
+		});
+		$('#availability .closebtn').click(function(){
+			$('#availability').hide();
+		});
+
+
+		$('#clearbtn').click(function(){
+			$('#clear').show();
+			$('#clearfinalbtn').click(function(){
+					$.ajax({
+						url: '/clearDB',
+						data: {'clearDB': true},
+						type: 'GET',
+						success: function(json) {
+							$('#clear p.fertig').show();
+						}
+					});
+			});
+		});
+		$('#clear .closebtn').click(function(){
+			$('#clear').hide();
+		});
+
+		
+		$('#settingsbtn').click(function(){
+					$.ajax({
+						url: '/settings',
+						data: {'action':'read'},
+						type: 'POST',
+						success: function(json) {
+							console.log(json);
+							$('#settings input#recordpath').val(json[0]);
+						}
+					});
+			$('#settings').show();
+			$('#recordpathbtn').click(function(){
+					$.ajax({
+						url: '/settings',
+						data: $("#settingsform").serialize(),
+						type: 'POST',
+						success: function(json) {
+							$('#settings p.fertig').show();
+						}
+					});
+			});
+		});
+		$('#settings .closebtn').click(function(){
+			$('#settings').hide();
+		});
+		
+		
+		$("input#filter-tags").bind("input propertychange", function (evt) {
+			if (window.event && event.type == "propertychange" && event.propertyName != "value")
+				return;
+			window.clearTimeout($(this).data("timeout"));
+			$(this).data("timeout", setTimeout(function () {
+				$('#videosourceslist li').hide();
+				if (evt.currentTarget.value != '') {
+					evt.currentTarget.value.split(" ").forEach(function (item) {
+						$('#videosourceslist li.'+item).show();
+					});
+					evt.currentTarget.value.split(",").forEach(function (item) {
+						$('#videosourceslist li.'+item).show();
+					});
+				} else {
+					$('#videosourceslist li').show();
+				}
+			}, 500));
+		});		
+
+		
+		$('#camviews').on('beforeItemAdd', 'form.tags ' ,function(event){
+		   var tag = event.item;
+		   var inp = $(event.currentTarget);
+		   var vsnum = $(event.currentTarget).children('input').attr('id').substr(10,3);
+		   event.options = {trimValue: true}
+		   if (!event.options || !event.options.preventPost) {
+				$.ajax({
+					url: '/tags',
+					data: {'vsnum': vsnum, 'tag': tag, 'action': 'add'},
+					type: 'GET',
+					success:function(response) {
+						if (!response) inp.tagsinput('remove', tag, {preventPost: true}); else if (response=='plus') {
+							var x = parseInt($('#videosourceslist li.vslist-'+vsnum+' span.badge').text());
+							if (!x) x=0;
+							$('#videosourceslist li.vslist-'+vsnum+' span.badge').text(x+1);
+							$('#videosourceslist li.vslist-'+vsnum).addClass(tag);
+							// DB ABFRAGE BADGE if (response.length > 0) $('#videosourceslist li.vslist-'+vsnum+' span.badge').text(response.length); else $('#videosourceslist li.vslist-'+vsnum+' span.badge').text('');
+						}
+					},
+					error:function(response) {				
+						inp.tagsinput('remove', tag, {preventPost: true});
+					}
+				});	
+		   }
+		});
+	
+		$('#camviews').on('beforeItemRemove', 'form.tags ' ,function(event){
+		   var tag = event.item;
+		   var inp = $(event.currentTarget);
+		   var vsnum =  $(event.currentTarget).children('input').attr('id').substr(10,4);
+		   if (!event.options || !event.options.preventPost) {
+				$.ajax({
+					url: '/tags',
+					data: {'vsnum': vsnum, 'tag': tag, 'action': 'remove'},
+					type: 'GET',
+					success:function(response) {				
+						if (!response) inp.tagsinput('add', tag, {preventPost: true}); else if (response=='minus') {
+							var x = parseInt($('#videosourceslist li.vslist-'+vsnum+' span.badge').text());
+							if (x <= 0) $('#videosourceslist li.vslist-'+vsnum+' span.badge').text(''); else $('#videosourceslist li.vslist-'+vsnum+' span.badge').text(x-1);
+							$('#videosourceslist li.vslist-'+vsnum).removeClass(tag);
+							// DB ABFRAGE BADGE if (response.length > 0) $('#videosourceslist li.vslist-'+vsnum+' span.badge').text(response.length); else $('#videosourceslist li.vslist-'+vsnum+' span.badge').text('');
+						}
+					},
+					error:function(response) {				
+						inp.tagsinput('remove', tag, {preventPost: true});
+					}
+				});	
+		   }
+		});
+
+
+	  function genCams(vsnum, action) {
+				if (!action) action = 'add';
+				if ($('#camviews div.videoframe-'+vsnum).length == 0) {
+					$.ajax({
+						url: '/updateviews',
+						data: {'vsnum': vsnum, 'action': action},
+						type: 'GET',
+						success:function(videosources) {					
+							$("#camviews").append('\
+									<div class="col-sm-4">\
+									<div class="videoframe-'+videosources.id+' videoframe">\
+										<div>\
+											<a href="'+videosources.url+'" target="_blank"><canvas id="frame-'+videosources.id+'"></canvas></a>\
+										</div>\
+										<form class="tags"><label for="tagsinput-'+videosources.id+'">Schlagworte: </label><input type="text" value="'+[].concat.apply([], videosources.taglist).join()+'" class="tagsinput" id="tagsinput-'+videosources.id+'" /></form>\
+										<p class=\"location\">&nbsp;</p>\
+										<div class="btn-group btn-group-sm">\
+											<button class="btn btn-default hidebtn" id="hidecamera-'+videosources.id+'">verstecken</button>\
+											<button class="btn btn-default resolvebtn" id="resolvecam-'+videosources.id+'">Geo-IP</button>\
+											<button class="btn btn-default snapbtn" id="snapcam-'+videosources.id+'">Bild</button>\
+											<button class="btn btn-default snapseqbtn" id="snapseqcam-'+videosources.id+'">Bildreihe</button>\
+											<button class="btn btn-default recbtn" id="reccam-'+videosources.id+'">Video</button>\
+											<button class="btn btn-default closebtn" id="hidecamera-'+videosources.id+'">schließen</button>\
+										</div>\
+									</div>\
+									</div>');
+							$('div.videoframe-'+videosources.id+' form.tags input').tagsinput('refresh');							
+							$('ul#videosourceslist li.vslist-'+videosources.id).removeClass('error');
+							$('ul#videosourceslist li.vslist-'+videosources.id).addClass('success');
+							$('#camviews div.videoframe-'+videosources.id).draggable({zIndex: 999});
+							$('#camviews div.videoframe-'+videosources.id).resizable();
+							$.ajax({
+								url: '/lastseen',
+								data: {'vsnum': videosources.id, 'lastseen': 'success'},
+								type: 'GET'
+							});											
+						}
+					});	
+				}
+	  };
+		
+	  $( function() {
+		$( "#videosourceslist" ).selectable({
+			selected: function( event, ui ) {
+				var vsnum = $(ui.selected).children('span.vslist').attr('id').substr(7,4);
+				genCams(vsnum);
+			},
+			unselected: function( event, ui ) {
+				/*$.ajax({
+					url: '/updateviews',
+					data: {'vsnum': $(ui.unselected).children('span.vslist').attr('id').substr(7,4), 'action': 'remove'},
+					type: 'GET',
+					success:function(videosources) {
+					}
+				});*/
+				var i = $(ui.unselected).children('span.vslist').attr('id').substr(7,4);
+				$('#videosourceslist li span.vslist-'+i).parent('li').addClass('stoprecording');
+				$('#videosourceslist li span#vslist-'+i).parent().removeClass('ui-selected');
+				$('div#camviews div.videoframe-'+i).parents('div.col-sm-4').remove()
+			}
+		});
+	  });		
+		$("#videosourceslist").on("selectablestart", function (event, ui) {
+			event.originalEvent.ctrlKey = true;
+		});
+
+		$('#navleft button.hideinactive').click(function(){
+			$('#videosourceslist li.error span.vslist').each(function(){
+				var i = $(this).attr("id").substr(7,4);
+				$('#videosourceslist li span#vslist-'+i).parent().remove();
+				$.ajax({
+					url: '/hide',
+					data: {'vsnum': i},
+					type: 'GET'
+				});							
+			});
+		});
+		$('#navleft button.hideuntagged').click(function(){
+			$('#videosourceslist li span.badge:empty').each(function(){
+				var i = $(this).siblings('span.vslist').attr("id").substr(7,4);
+				$('#videosourceslist li span#vslist-'+i).parent().remove();
+				$.ajax({
+					url: '/hide',
+					data: {'vsnum': i},
+					type: 'GET'
+				});							
+			});
+		});
+
+
+
+	{% if activevsnum|length > 0 %}
+		{% for value in activevsnum %}
+			genCams('{{ value }}', 'show');
+			$('#videosourceslist li.vslist-{{ value }}').addClass("ui-selected");
+		{% endfor %}
+	{% endif %}
+
+
+
+
+	
+	});
+	
+	
+  </script>
+  </head>
+  <body>
+  <div class="container-fluid" id="main">
+
+  <nav class="navbar navbar-default">
+  <div class="container-fluid">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+        <span class="sr-only">Navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/?online=1"><strong>Kamopticon</strong></a>
+    </div>
+
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav">
+        <li><a href="/?online=1">Anschnur</a></li>
+        <li><a href="/?online=0">Versteckte</a></li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Extras <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="#" id="availabilitybtn">Alle Verfügbarkeit prüfen</a></li>
+            <li><a href="#" id="settingsbtn">Einstellungen</a></li>
+			<li role="separator" class="divider"></li>
+			<li><a href="#" id="clearbtn">Datenbank leeren</a></li>
+          </ul>
+        </li>
+      </ul>
+	  <form class="navbar-form navbar-left" action="/import" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+			<input class="form-control dateiinput" name="datei" type="file">
+			<button class="btn btn-default" type="submit">txt Import</button>
+        </div>
+      </form>
+      <ul class="nav navbar-nav navbar-right">
+		<li><button type="button" class="btn btn-default btn-md" id="lizenzbtn"><span class="glyphicon glyphicon glyphicon-info-sign" aria-hidden="true"></span></button></li>
+      </ul>
+    </div>
+  </div>
+  </nav>
+
+  
+  <div class="row">
+	<div class="col-md-2">
+		<nav class="navbar navbar-default" id="navleft">
+		<div class="tagfilter">
+			<label for="filter-tags">Schlagworte filtern:</label>
+			<input type="text" name="filter-tags" id="filter-tags" class="form-control">	
+		</div>
+		<div id="videosourceslistdiv">
+		{% if videosourceslist|length > 0 %}
+			<ul class="list-group" id="videosourceslist">
+			  {% for key, value in videosourceslist.items() %}
+			  <li class="list-group-item vslist-{{ key }} {{ value['lastseen'] }} {% for a in value['taglist'] %}{{ a[0] }}{% endfor %}"><span class="badge">{% if value['taglist']|length > 0 %}{{ value['taglist']|length }}{% endif %}</span><span class="vslist" id="vslist-{{ key }}">{{ value['ip'] }} {% if value['country'] %} ({{ value['country']}}){% endif %}</span></li>
+			  {% endfor %}
+			</ul>
+		{% endif %}
+		</div>
+		<div class="btn-group-sm">
+		  <button type="button" class="btn btn-default hideinactive">Verstecke Inaktive</button>
+		  <button type="button" class="btn btn-default hideuntagged">Verstecke Ungetaggte</button>
+		</div>
+		</nav>
+	</div>
+	<div class="col-md-10" id="camviews">
+
+		<div class="panel panel-default" id="lizenz">
+		  <div class="panel-heading">
+			<h3 class="panel-title">Kamopticon Lizenz und Spendenadresse<button type="button" class="btn btn-default btn-sm closebtn" ><span class="glyphicon glyphicon glyphicon glyphicon-remove" aria-hidden="true"></span></button></h3>
+		  </div>
+		  <div class="panel-body">
+			<h1>Kamopticon</h1>
+			<p>&copy; "Popkultur" 2016 &mdash; Version 1.0<br />
+			Diese Software steht unter der <a href="/LICENSE.TXT">modifizierten MIT-Lizenz</a><br />
+			Spenden unter 16uDVeFjXtP8S29HRCovPu4kniQooZF1xp</p>
+			<p>Diese Software wurde in Python® geschrieben. "Python" ist ein eingetragenes Markenzeichen der Python Software Foundation. <a href="static/LICENSE.PYTHON-2.0.TXT">Zur Python 2.0 Lizenz</a>.</p>
+		  </div>
+		</div>
+
+		<div class="panel panel-default" id="availability">
+		  <div class="panel-heading">
+			<h3 class="panel-title">Prüfe Verfügbarkeit…<button type="button" class="btn btn-default btn-sm closebtn" ><span class="glyphicon glyphicon glyphicon glyphicon-remove" aria-hidden="true"></span></button></h3>
+		  </div>
+		  <div class="panel-body">
+			<p>Adressen werden auf Verfügbarkeit überprüft.</p>
+			<div class="progress">
+			  <div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%; min-width: 2em;"></div>
+			</div>		
+			<p class="fertig">Vorgang abgeschlossen.</p>
+			</div>
+		</div>
+
+		<div class="panel panel-default" id="clear">
+		  <div class="panel-heading">
+			<h3 class="panel-title">Datenbank leeren…<button type="button" class="btn btn-default btn-sm closebtn" ><span class="glyphicon glyphicon glyphicon glyphicon-remove" aria-hidden="true"></span></button></h3>
+		  </div>
+		  <div class="panel-body">
+			<p>Datenbank wirklich leeren? Alle Kameras und Schlagworte werden gelöscht!</p>
+			<button type="button" class="btn btn-default" id="clearfinalbtn">Datenbank löschen.</button>
+			<p class="fertig">Datenbank wurde geleert.</p>
+			</div>
+		</div>
+
+		<div class="panel panel-default" id="settings">
+		  <div class="panel-heading">
+			<h3 class="panel-title">Einstellungen…<button type="button" class="btn btn-default btn-sm closebtn" ><span class="glyphicon glyphicon glyphicon glyphicon-remove" aria-hidden="true"></span></button></h3>
+		  </div>
+		  <div class="panel-body">
+			<p>Speicherort für Aufnahmen setzen (zum Beispiel C:\Temp):</p>		
+			<div class="form-group">
+				<form action="/settings" method="post" enctype="multipart/form-data" id="settingsform">
+					<input class="recordpath form-control" id="recordpath" name="recordpath" type="text" value="">
+					<button class="btn btn-default" id="recordpathbtn" type="button">Setzen</button>
+					<input type="hidden" id="action" name="action" value="write">
+				</form>		
+			</div>
+			<p class="fertig">Datenbank wurde aktualisiert.</p>
+			</div>
+		</div>
+		
+	</div>
+  </div>
+	
+  </div>
+  <script src="/static/bootstrap-3.3.7-dist/js/bootstrap.min.js"></script>
+  </body>
+</html>

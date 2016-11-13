@@ -1,0 +1,150 @@
+* { border-radius: 0 !important; }
+
+body {
+	background-color: #2e343a;
+	padding-top: 15px; 
+}
+
+
+#lizenzbtn {
+	margin-top: 10px;
+}
+#lizenz, #availability, #availability p.fertig, #clear, #clear p.fertig, #settings, #settings p.fertig {
+	display: none;
+}
+#lizenz button.closebtn, #availability button.closebtn, #clear button.closebtn, #settings button.closebtn  { float: right; margin-top: -7px;}
+ 
+
+
+div#videosourceslistdiv {
+	width: 100%;
+	height: calc(100vh - 300px);
+	overflow-y: scroll;
+	padding-right: 5px;
+	margin-top: 5px;
+}
+
+ul#videosourceslist li {
+	cursor: pointer;
+	overflow: hidden;
+	white-space: nowrap;
+	background: #567aa2;
+	font-size: 13px;
+	border: 1px solid #375a7f;
+}
+ul#videosourceslist li:hover {
+	background: #7b9fca;
+}
+ul#videosourceslist li.ui-selected {
+	background: #c7ff9d;
+}
+ul#videosourceslist li.ui-selected span {
+	color: #000000;
+}
+ul#videosourceslist li.error.ui-selected {
+	background: #ff7272;
+}
+ul#videosourceslist li.error.ui-selected span {
+	color: #000000;
+}
+ul#videosourceslist li.error {
+	color: #ff7272;
+}
+ul#videosourceslist li.success {
+	color: #c7ff9d
+}
+
+#videosourceslist .ui-selecting { background-color: #cccccc; }
+#videosourceslist .ui-selected { background-color: #aaaaaa; }
+
+#main button, #main input.dateiinput {
+	background-color: #567aa2;
+	border-color: #7b9fca;	
+	color: #ffffff;
+}
+#main button:hover {
+	background-color: #7b9fca;
+	border-color: #7b9fca;	
+}
+
+#main .panel-body {
+	background-color: #375a7f;
+	border-color: #7b9fca;
+}
+#main .panel-heading {
+	background-color: #567aa2;
+	border-color: #7b9fca;		
+}
+
+#navleft {
+	padding: 20px;
+}
+#navleft button {
+	width: 100%;
+	text-align: left;
+	margin-top: 5px;
+}
+#navleft label {
+	font-size: 13px;
+	font-weight: normal;
+}
+#navleft input#filter-tags {
+	height: 30px;
+}
+
+
+
+div.videoframe{
+	border: 1px solid #000000;
+	border-radius: 4px;
+	background-color: #000;
+	padding: 5px;
+}
+div.videoframe canvas {
+	background-color: #000000;
+	max-width: 100%;
+	max-height: 240px;
+}
+
+div.videoframe p, div.videoframe form.tags label {
+	display: block;
+	margin-top: 8px;
+	color: #ffffff;
+	font-weight: normal;
+	font-size: 12px;
+}
+div.videoframe form.tags label {
+	width: 20%;
+	float: left;
+}
+
+div.videoframe div.bootstrap-tagsinput {
+	width: 80%;
+	float: left;
+	background-color: #555555;
+	border-color: #000000;
+	color: #ffffff;
+}
+div.videoframe div.bootstrap-tagsinput span.label {
+	background-color: #ffffff;
+	color: #000000;
+	font-weight: normal;
+	font-size: 12px;
+}
+
+#camviews div.videoframe button {
+	background-color: #444444;
+	border-color: #666666;
+	}
+#camviews div.videoframe button:hover {
+	background-color: #666666;
+	border-color: #666666;
+	}
+
+#camviews div.videoframe button.disabled {
+	background: #aa0000;
+}
+
+ul.dropdown-menu {
+	background-color: #7b9fca;
+}
